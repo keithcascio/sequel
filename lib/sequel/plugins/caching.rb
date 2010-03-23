@@ -17,6 +17,11 @@ module Sequel
     #                                    # currently in the cache with that key.
     #    cache_store.delete(key)         # Remove key from cache
     #
+    # Minimal code to use local caching:
+    #
+    #    Sequel::Model.plugin :caching, STORE = {}
+    #    class <<STORE; def set(k, v, t=nil) self[k] = v end; def get(k) self[k] end end
+    #
     # If the :ignore_exceptions option is true, exceptions raised by cache_store.get
     # are ignored and nil is returned instead.  The memcached API is to
     # raise an exception for a missing record, so if you use memcached, you will
