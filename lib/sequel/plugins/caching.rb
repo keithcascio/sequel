@@ -22,6 +22,18 @@ module Sequel
     # raise an exception for a missing record, so if you use memcached, you will
     # want to use this option.
     #
+    # If the :on_create option is true, we avoid a predictable cache miss by
+    # populating the cache inside Model::create().  :on_create is false by default,
+    # because cache-on-create behavior degrades the performance of most
+    # applications. :on_create is more likely to improve performance when code looks
+    # up a particular record at least once, but not frequently, after creating it,
+    # especially if the code is guaranteed to look up a created record exactly once.
+    # An example use case is a program that takes undernormalized data as input and
+    # batch-populates a database defined according to a tightly normalized schema.
+    # Turning on :on_create also defines the class method
+    # Model::lookup_or_create(*pk), which resembles Sequel::Model::find_or_create()
+    # but expects the same argument(s) as Sequel::Model::[].
+    #
     # Note that only Model.[] method calls with a primary key argument are cached
     # using this plugin.
     module Caching
@@ -32,6 +44,20 @@ module Sequel
           @cache_store = store
           @cache_ttl = opts[:ttl] || 3600
           @cache_ignore_exceptions = opts[:ignore_exceptions]
+        end
+
+        if opts[:on_create]
+          ClassMethods.module_eval do
+            def create(values = {}, pk = nil, &block)
+              obj = super(values, &block)
+              cache_set((pk && cache_key(pk)) || obj.cache_key, obj)
+              obj
+            end
+
+            def lookup_or_create(*pk)
+              self[*pk] || self.create(self.primary_key_hash(pk.size == 1 ? pk.first : pk), pk)
+            end
+          end
         end
       end
 
